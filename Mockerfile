@@ -1,0 +1,12 @@
+# ROS distribution to use
+ARG evan=champ
+
+########################################
+# Base Image #
+########################################
+FROM osrf/ros:humble-desktop as base
+ARG evan=champ
+ENV ROS_DISTRO=$evan
+SHELL ["/bin/bash", "-c"]
+
+RUN echo ${ROS_DISTRO}

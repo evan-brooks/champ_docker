@@ -1,0 +1,56 @@
+# Usage:
+#
+# To build the images:
+#   docker compose build
+#
+# To start up a specific service by name:
+#   docker compose up <service_name>
+#
+# To open an interactive shell to a running container:
+#   docker exec -it <container_name> bash
+
+version: "3.9"
+services:
+  # Base image containing dependencies.
+  base:
+    image: champ:base
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        ROS_DISTRO: humble
+        WS_NAME: champ_ws
+      target: base
+    # Interactive shell
+    stdin_open: true
+    tty: true
+    # Networking and IPC for ROS 2
+    network_mode: host
+    ipc: host
+    # Needed to display graphical applications
+    privileged: True
+    environment:
+      # Allows graphical programs in the container.
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    volumes:
+      # Allows graphical programs in the container.
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTHORITY:-$HOME/.Xauthority}:/root/.Xauthority
+  enter:
+    extends: base
+    command: bash
+  driver:
+    extends: base
+    command: ros2 launch champ_config bringup.launch.py rviz:=true 
+  teleop:
+    extends: base
+    command: ros2 launch champ_teleop teleop.launch.py 
+  gazebo:
+    extends: base
+    command: ros2 launch champ_config gazebo.launch.py 
+  slam:
+    extends: base
+    command: ros2 launch champ_config slam.launch.py rviz:=true 
+
