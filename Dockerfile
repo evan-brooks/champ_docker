@@ -32,13 +32,16 @@ ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 
 RUN rosdep update
 
+WORKDIR /${WS_NAME}/src/champ/
+RUN rm -R build
+
 # Create Colcon workspace with external dependencies
-RUN mkdir -p /${WS_NAME}/src
+#RUN mkdir -p /${WS_NAME}/src
 WORKDIR /${WS_NAME}/src
 #COPY dependencies.repos .
 #RUN vcs import < dependencies.repos
-RUN git clone --recursive https://github.com/evan-brooks/champ -b ros2
-RUN git clone https://github.com/chvmp/champ_teleop -b ros2
+#RUN git clone --recursive https://github.com/chvmp/champ -b ros2
+#RUN git clone https://github.com/chvmp/champ_teleop -b ros2
 
 # Build the base Colcon workspace, installing dependencies first.
 WORKDIR /${WS_NAME}
@@ -57,3 +60,39 @@ ENV NO_AT_BRIDGE 1
 WORKDIR /${WS_NAME}
 COPY entrypoint.sh /
 ENTRYPOINT [ "/entrypoint.sh" ]
+
+#####################
+# Development Image #
+#####################
+FROM base as dev
+
+# Dev container arguments
+ARG WS_NAME
+ENV WS_NAME=${WS_NAME}
+ARG USERNAME=devuser
+ARG UID=1000
+ARG GID=${UID}
+
+# Install extra tools for development
+RUN apt-get update && apt-get install -y --no-install-recommends \
+ gdb gdbserver nano
+
+# Create new user and home directory
+RUN groupadd --gid $GID $USERNAME \
+ && useradd --uid ${GID} --gid ${UID} --create-home ${USERNAME} \
+ && echo ${USERNAME} ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/${USERNAME} \
+ && chmod 0440 /etc/sudoers.d/${USERNAME} \
+ && mkdir -p /home/${USERNAME} \
+ && chown -R ${UID}:${GID} /home/${USERNAME}
+
+# Set the ownership of the workspace to the new user
+RUN chown -R ${UID}:${GID} /${WS_NAME}/
+
+# Move Groot2 to new user's home directory and ensure it can be run
+RUN groupadd fuse \
+ && usermod -aG fuse ${USERNAME}
+
+# Set the user and source entrypoint in the user's .bashrc file
+USER ${USERNAME}
+RUN echo "source /entrypoint.sh" >> /home/${USERNAME}/.bashrc
+
